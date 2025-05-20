@@ -32,16 +32,18 @@ from common.utils.push_notification_auth import PushNotificationReceiverAuth
 
 @click.command()
 @click.option('--agent', default='http://localhost:10000')
-@click.option('--session', default=0)
+@click.option('--session', default='0')
 @click.option('--history', default=False)
 @click.option('--use_push_notifications', default=False)
 @click.option('--push_notification_receiver', default='http://localhost:5000')
+@click.option('--token', default=None)
 async def cli(
     agent,
     session,
     history,
     use_push_notifications: bool,
     push_notification_receiver: str,
+    token,
 ):
     async with httpx.AsyncClient(timeout=30) as httpx_client:
         card_resolver = A2ACardResolver(httpx_client, agent)
@@ -87,6 +89,7 @@ async def cli(
                 notification_receiver_port,
                 None,
                 None,
+                token,
             )
 
             if history and continue_loop:
@@ -109,6 +112,7 @@ async def completeTask(
     notification_receiver_port: int,
     taskId,
     contextId,
+    token,
 ):
     prompt = click.prompt(
         '\nWhat do you want to send to the agent? (:q or quit to exit)'
@@ -162,12 +166,14 @@ async def completeTask(
 
     taskResult = None
     message = None
+    headers = {"Authorization": f"Bearer {token}"} if token else None
     if streaming:
         response_stream = client.send_message_streaming(
             SendStreamingMessageRequest(
                 id=str(uuid4()),
                 params=payload,
-            )
+            ),
+            http_kwargs={ "headers":headers }
         )
         async for result in response_stream:
             if isinstance(result.root, JSONRPCErrorResponse):
@@ -194,7 +200,8 @@ async def completeTask(
                 GetTaskRequest(
                     id=str(uuid4()),
                     params=TaskQueryParams(id=taskId),
-                )
+                ),
+                http_kwargs={ "headers":headers }
             )
             taskResult = taskResult.root.result
     else:
@@ -204,7 +211,8 @@ async def completeTask(
                 SendMessageRequest(
                     id=str(uuid4()),
                     params=payload,
-                )
+                ),
+                http_kwargs={ "headers":headers }
             )
             event = event.root.result
         except Exception as e:
@@ -248,6 +256,7 @@ async def completeTask(
                     notification_receiver_port,
                     taskId,
                     contextId,
+                    token,
                 ),
                 contextId,
                 taskId,
