@@ -166,7 +166,7 @@ async def completeTask(
 
     taskResult = None
     message = None
-    headers = {"Authorization": f"Bearer {token}"} if token else None
+    headers = {"Authorization": f"Bearer {token}"} if token else {}
     if streaming:
         response_stream = client.send_message_streaming(
             SendStreamingMessageRequest(
